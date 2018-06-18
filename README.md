@@ -12,7 +12,7 @@ Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e
 
 ![](full_example.JPG)
 
-The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
+The graph to the left is the input. Notice there are two nodes connected through ports of label A: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
 
 ## Parallel implementation
 
