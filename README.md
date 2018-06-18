@@ -29,7 +29,7 @@ var buffer = [     4,      2,      1,      0,       0,      6,      5,      1]
 //               i=0     i=1     i=2     i=3      i=4     i=5     i=6     i=7
 ```
 
-The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buffer represents the A port of the node A. Thus, `buffer[0] = 4`, because 4 is the position of the A port of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of the node A are connected. The algorithm them just continuously rewrittes that buffer as such:
+The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buffer represents the A port of the node A. Thus, `buffer[0] = 4`, because 4 is the position of the A port of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of the node A are connected. Also, the first node is considered the "root" node; it is never reduced (so, that pair is exceptionally not an active pair). The algorithm them just continuously rewrittes active pairs on that buffer as such:
 
 1. Find the initial list of active pairs;
 
@@ -100,8 +100,6 @@ b"@A #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x @B #f #
 ```
 
 And so on. The first sequence of `/f`s determines how parallel-hard that graph is, and the second one determines how sequential-hard it is. If you want to implement your code independently, you may want to add a `println!("{:?}", net)`  after line 198. That way, you'll get a nice input buffer to test your implementation. You can also set `net.nodes = your_output_buffer;` (like on line 284) and then use `println!("{}", term::from_net(&net))` to print the corresponding λ-term. If it matches with the output of my implementation, then it is correct. You can also do it on the `master` branch if you just want input/output buffers and terms, in the case my OpenCL code doesn't run there. There is also a JavaScript implementation if Rust isn't your thing. And, of course, you can ignore my code and build some random graphs yourself and implement/test it in whatever way you feel like.
-
-
 
 
 
