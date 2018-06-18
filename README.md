@@ -24,7 +24,7 @@ Is represented as:
 
 ```javascript
 //            node_A                          node_B 
-//            port_A  port_B  port_C  label   port_A  port_B  port_C    label   
+//            port_A  port_B  port_C   label  port_A  port_B  port_C    label   
 var buffer = [     4,      2,      1,      0,       0,      6,      5,      1]
 //               i=0     i=1     i=2     i=3      i=4     i=5     i=6     i=7
 ```
