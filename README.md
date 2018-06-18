@@ -63,11 +63,11 @@ Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in pa
 
 9. Invalid state
 
-To solve that problem, I perform the reduction in two steps. The first step, `redex()`, applies fully local rewrite rules to active pairs:
+To solve that problem, I perform the reduction in two steps. The first step, `redex()`, just applies those local rewrite rules to active pairs:
 
 ![](local_rewrites.PNG)
 
-Notice that, here, P, Q, R and S (i.e., ports on different nodes) aren't affected. Instead, they keep pointing to the same location, but that location now points to where those ports should point. Also, the rewritten nodes aren't erased yet; instead, they are kept on memory as temporary "redirection nodes". The second steps, `visit()`, takes place after the first one (i.e., a global synchronization). It spawns one thread for each neighbor port of rewritten nodes. Each thread travels through the graph until it finds a port in a non-redirection node. Then, they rewrite their starting ports to point to their final ports - that connects the neighbor nodes correctly. Those threads also mark the redirection nodes they visit for garbage collection. That just means that space is free and can be allocated by a duplication rules. They can do that, because redirection nodes aren't necessary after starting and ending ports are connected. Finally, if starting and ending ports have an `A` label, then that thread activates the step 1 again for that active pair. Here is an example:
+They're actually local because P, Q, R and S (i.e., ports on different nodes) aren't affected. As such, nodes on the neighborhoods of an active pair keep pointing to the old, rewritten nodes, but that location now points to where those ports should point. Consequently, rewritten nodes can't erased yet: instead, they are kept on memory as temporary "redirection nodes". The second step, `visit()`, takes place after the first one (i.e., a global synchronization). It spawns one thread for each neighbor port of the active pair (thus, 4 threads). Each one travels through the graph until it finds a port in a non-redirection node. Then, it rewrites its starting port to point to its final port. Those threads also mark the redirection nodes they visit for garbage collection; that just means that space is free and can be allocated by a duplication rule. Finally, if starting and ending ports have an `A` label, then that thread activates the step 1 again for that active pair. Here is an example:
 
 ![](local_rewrites_ex.JPG)
 
