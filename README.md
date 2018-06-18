@@ -16,7 +16,7 @@ The graph to the left is the input. Notice there are two nodes connected through
 
 ## Parallel implementation
 
-That problem is remarkably parallel, because, at any point in time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple represent a node. The first 3 slots of the quadruple are the node ports (port A, port B, port C), and their values are the index of the adjacent port. The last value of the node is its 32-bit label. So, for example, the following graph:
+That problem is remarkably parallel, because, at any point in time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple represents a node. The first 3 slots of the quadruple are the node ports (port A, port B, port C), and their values are the index of the adjacent port. The last value of the node is its 32-bit label. So, for example, the following graph:
 
 ![](simple_example.JPG)
 
