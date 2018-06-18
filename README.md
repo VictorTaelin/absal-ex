@@ -1,6 +1,6 @@
 Note: just a draft, will be reviewed soon
 
-### Problem description
+## Problem description
 
 The input is a graph where every node has exactly 3 edges coming out of 3 labelled ports (port A, port B, port C) and a single 32-bit "node label" (do not confuse with port labels). If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten due to one of the two following rules:
 
@@ -8,13 +8,13 @@ The input is a graph where every node has exactly 3 edges coming out of 3 labell
 
 Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e., their order), `a` and `b` represent node labels (32-bit values), and the lone circles represent separete ports (i.e., some ports in other nodes of the graph). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
 
-### Example
+## Example
 
 ![](full_example.JPG)
 
 The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
 
-### Parallel implementation
+## Parallel implementation
 
 That problem is remarkably parallel, because, at any point in time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple of uints form a node. The first 3 values of the node are its ports (port A, port B, port C), and their values point to the ports of the adjacent node on the graph. The last value of the node is its 32-bit label. So, for example, the following graph:
 
@@ -63,15 +63,23 @@ Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in pa
 
 9. Invalid state
 
-To solve that problem, I perform the reduction in two steps. The first step, `redex()`, just applies those local rewrite rules to active pairs:
+To solve that problem, I perform the reduction in two steps. 
+
+### First step: redex()
+
+The first step, `redex()`, applies those updated rewrite rules:
 
 ![](local_rewrites.PNG)
 
-They're actually local because P, Q, R and S (i.e., ports on different nodes) aren't affected. As such, nodes on the neighborhoods of an active pair keep pointing to the old, rewritten nodes, but that location now points to where those ports should point. Consequently, rewritten nodes can't erased yet: instead, they are kept on memory as temporary "redirection nodes". The second step, `visit()`, takes place after the first one (i.e., a global synchronization). It spawns one thread for each neighbor port of the active pair (thus, 4 threads). Each one travels through the graph until it finds a port in a non-redirection node. Then, it rewrites its starting port to point to its final port. Those threads also mark the redirection nodes they visit for garbage collection; that just means that space is free and can be allocated by a duplication rule. Finally, if starting and ending ports have an `A` label, then that thread activates the step 1 again for that active pair. Here is an example:
+They're similar to the ones I drawn before, but now they're actually local because ports on the neighborhoods of active pairs (i.e., P, Q, R and S) aren't affected. Instead, they keep pointing to the same location, but that location now points to where those ports should point. Consequently, rewritten nodes can't erased yet: instead, they are kept on memory as temporary "redirection nodes". 
+
+### Second step: visit()
+
+The second step, `visit()`, takes place after the first one (i.e., a global synchronization). It spawns one thread for each neighbor port of the active pair (thus, 4). Each thread travels through the graph until it finds a port in a non-redirection node. Then, it rewrites its starting port to point to its final port. It also marks the redirection nodes it visits for garbage collection (that just means that space is free and can be allocated by a duplication rule). Finally, if starting and ending ports have an `A` label, then it activates the step 1 again for that active pair. Here is an example:
 
 ![](local_rewrites_ex.JPG)
 
-Notice that, on the first step, `redex()`, two threads rewrite nodes `B-C` and `D-E` locally. Their effect areas don't intersect, and nodes `A` and `F` aren't affected, for example. Nodes `B`, `C`, `D` and `E` become redirection nodes. The second step, `visit()`, is, then, responsible for completing the rewrite, collecting garbage nodes and starting step 1 again if new active pairs are present. On it, 8 threads start walking through the graph starting from ports `Ab, Ac, Db, Dc, Cb, Cc, Fb, Fc` respectivelly (here, `Ab` represents port `B` of node `A`). The thread starting from `Ab`, for example, walks through this path: `Ab -> Bc -> Db -> Fc`. When it arrives at `Fc` (a non-redirection node), it connects `Ab` to it. It also marks nodes `B` and `D` for garbage collection. Finally, since `Ab <-> Fc` isn't an active pair, it stops. If it was `Aa <-> Fa` instead, it would start a `redex()` thread for it.
+Notice that, on the first step, `redex()`, two threads rewrite nodes `B-C` and `D-E` locally. Their effect areas don't intersect, so the thread rewritting `B-C` won't touch `D-E`, and nodes `A` and `F` aren't affected at all. Nodes `B`, `C`, `D` and `E` become redirection nodes. The second step, `visit()`, is, then, responsible for completing the rewrite, freeing redirection nodes and starting step 1 again if new active pairs are present. Since `redex()` had two threads, `visit()` will need 8 threads. Those walk through the graph looking for non-redirection nodes, starting from ports `Ab, Ac, Db, Dc, Cb, Cc, Fb, Fc` (here, `Ab` represents port `B` of node `A`). As an example, the thread starting from `Ab` walks through this path: `Ab -> Bc -> Db -> Fc`. When it arrives at `Fc` (a non-redirection node), it connects `Ab` to it. It also frees nodes `B` and `D`. Finally, since `Ab <-> Fc` isn't an active pair, it stops. If it was `Aa <-> Fa` instead, it would start a `redex()` thread for it.
 
 This algorithm is implemented on the [branch `parallel_test_3` of the absal-rs repository](https://github.com/moon-project/absal-rs/tree/parallel-test-3). The OpenCl code is on `main.rs`. Despite being a GPU newbie and probably doing a lot of innefficient things (like using `atomic_inc()` to implement global stacks, and reading data from the GPU between each kernel call), I managed to achive about 16m rewrites/s on Intel Iris Graphics 550, exactly the same performance I got on my sequential Rust implementation in a 3.3 GHZ Intel Core i7. My hope is that an expert in GPUs would be able to improve that number considerably.
 
