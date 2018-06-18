@@ -45,11 +45,11 @@ There is one problem, though. Notice the following graph:
 
 Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in parallel. The problem is that thread 0 attempts to rewrite a port of the node D, which is currently being read by the thread 1! Or, in other words, while the rewrite rules are local, they can intersect. The following scenario can happen:
 
-1. Thread 0 loads nodse B, C
+1. Thread 0 loads nodes B, C
 
 2. Thread 1 noads nodes D, E
 
-3. Thread 0 rewrites nodes B, C
+3. Thread 0 rewrites nodes B, C (which also affects A, D)
 
 4. Now, D points to A, not C
 
