@@ -6,13 +6,13 @@ The input is a graph where every node has exactly 3 edges coming out of 3 labell
 
 ![](rewrite_rules_a.JPG)
 
-Here, the triangles represent nodes, and the lone circles represent ports (i.e., parts of other nodes elsewhere). The first rule is used if the node labels are different. The second one if they are identical. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
+Here, the triangles represent nodes, and the lone circles represent ports (i.e., parts of other nodes elsewhere). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
 
 ### Example
 
 ![](full_example.JPG)
 
-The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the first rule, and top ones using the second rule. Now there are 4 active pairs.
+The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
 
 ### Parallel implementation
 
