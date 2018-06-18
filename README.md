@@ -85,7 +85,7 @@ This algorithm is implemented on the [branch `parallel_test_3` of the absal-rs r
 
 Note that I just came up with this myself, you probably know simpler and smarter solutions for this issue.
 
-### Testing
+## Testing
 
 The purpose of this algorithm is to reduce lambda calculus terms optimally. It can, thus, be seen as the runtime of a programming language. It can be tested by converting lambda-terms to buffers on the format I described above, reducing it with the implementation, and then translating those buffers back to lambda-terms. If the output corresponds to the normal form of the lambda-term, then the test passes. There are, thus, literally infinite programs with infinitely different characteristics you could use to test it. I have Rust and JavaScript code capable of doing that, and will set up a bench of tests in the case we move forward. 
 
