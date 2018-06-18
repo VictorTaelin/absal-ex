@@ -29,7 +29,7 @@ var buffer = [     4,      2,      1,      0,       0,      6,      5,      1]
 //               i=0     i=1     i=2     i=3      i=4     i=5     i=6     i=7
 ```
 
-The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buffer represents the port A of the node A. Thus, `buffer[0] = 4`, because 4 is the position of the port A of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of the node A are connected. Also, the first node is considered the "root" node; it is never reduced (so, that pair is exceptionally not an active pair). The algorithm them just continuously rewrittes active pairs on that buffer as such:
+The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buffer represents the port A of the node A. Thus, `buffer[0] = 4`, because 4 is the position of the port A of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of the node A are connected. Also, the first node is considered the "root" node; it is never reduced (so, that pair is exceptionally not an active pair). The algorithm then just continuously rewrittes active pairs on that buffer as such:
 
 1. Find the initial list of active pairs;
 
