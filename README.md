@@ -6,7 +6,7 @@ The input is a graph where every node has exactly 3 edges coming out of 3 labell
 
 ![](rewrite_rules_a.JPG)
 
-Here, the triangles represent nodes, and the lone circles represent ports (i.e., parts of other nodes elsewhere). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
+Here, the triangles represent nodes, `A`, `B` and `C` represent port labels, the numbers represent node labels, and the lone circles represent separete ports (i.e., some ports in other nodes of the graph). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
 
 ### Example
 
