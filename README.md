@@ -47,7 +47,7 @@ Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in pa
 
 1. Thread 0 loads nodes B, C
 
-2. Thread 1 noads nodes D, E
+2. Thread 1 loads nodes D, E
 
 3. Thread 0 rewrites nodes B, C (which also affects A, D)
 
