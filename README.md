@@ -1,3 +1,5 @@
+Note: just a draft, will be reviewed soon
+
 ### Problem description
 
 The input is a graph where every node has exactly 3 edges coming out of 3 labelled ports (port A, port B, port C) and a single 32-bit label. If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten due to one of the two following rules:
