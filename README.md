@@ -1,4 +1,4 @@
-Note: just a draft, will be reviewed soon
+Note: just a draft / hand-drawn images, will be reviewed soon
 
 ## Problem description
 
