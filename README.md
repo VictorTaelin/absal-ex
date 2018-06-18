@@ -12,7 +12,7 @@ Here, the triangles represent nodes, and the lone circles represent ports (i.e.,
 
 ![](full_example.JPG)
 
-The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the first rule, and top ones using the second rule. Now there are 3 active pairs.
+The graph to the left is the input. Notice there are two nodes connected through ports of label 0: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the first rule, and top ones using the second rule. Now there are 4 active pairs.
 
 ### Parallel implementation
 
@@ -43,19 +43,19 @@ There is one problem, though. Notice the following graph:
 
 ![](problem.JPG)
 
-Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in parallel. The problem is that thread 1 attempts to rewrite a port of the node D, which is currently being read by the thread 2! Or, in other words, while the rewrite rules are local, they can intersect. The following scenario can happen:
+Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in parallel. The problem is that thread 0 attempts to rewrite a port of the node D, which is currently being read by the thread 1! Or, in other words, while the rewrite rules are local, they can intersect. The following scenario can happen:
 
-1. Thread 1 loads nodse B, C
+1. Thread 0 loads nodse B, C
 
-2. Thread 2 noads nodes D, E
+2. Thread 1 noads nodes D, E
 
-3. Thread 1 rewrites nodes B, C
+3. Thread 0 rewrites nodes B, C
 
 4. Now, D points to A, not C
 
 5. But kernel 2 loaded the old version of D
 
-6. Thread 2 rewrites D, E with the information it has
+6. Thread 1 rewrites D, E with the information it has
 
 7. A now points to node D, which was erased
 
@@ -75,9 +75,31 @@ Notice that, on the first step, `redex()`, two threads rewrite nodes `B-C` and `
 
 This algorithm is implemented on the [branch `parallel_test_3` of the absal-rs repository](https://github.com/moon-project/absal-rs/tree/parallel-test-3). The OpenCl code is on `main.rs`. Despite being a GPU newbie and probably doing a lot of innefficient things (like using `atomic_inc()` to implement global stacks, and reading data from the GPU between each kernel call), I managed to achive about 16m rewrites/s on Intel Iris Graphics 550, exactly the same performance I got on my sequential Rust implementation in a 3.3 GHZ Intel Core i7. My hope is that an expert in GPUs would be able to improve that number considerably.
 
+Note that I just came up with this myself, you probably know simpler and smarter solutions for this issue.
+
 ### Testing
 
-The purpose of this algorithm is to reduce lambda calculus terms optimally. It can, thus, be seen as the runtime of a programming language. It can be tested by converting lambda-terms to buffers on the format I described above, reducing it with the implementation, and then translating those buffers back to lambda-terms. If the output corresponds to the normal form of the lambda-term, then the test passes. There are, thus, literally infinite programs with infinitely different characteristics you could use to test it. I have Rust and JavaScript code capable of doing that, and a bunch of examples covering different kinds of programs if needed. The program used on the `parallel-test-3` branch of absal-rs (line 197 of main.rs) is probably good enough to test the performance, though. Another option is to just build some random graphs directly and test against a simpler, sequential reducer. Since the algorithm is pretty straightforward, such a thing could easily be implemented in any language you prefer.
+The purpose of this algorithm is to reduce lambda calculus terms optimally. It can, thus, be seen as the runtime of a programming language. It can be tested by converting lambda-terms to buffers on the format I described above, reducing it with the implementation, and then translating those buffers back to lambda-terms. If the output corresponds to the normal form of the lambda-term, then the test passes. There are, thus, literally infinite programs with infinitely different characteristics you could use to test it. I have Rust and JavaScript code capable of doing that, and will set up a bench of tests in the case we move forward. 
+
+In order for you to work, the Main.rs file on the `parallel-test-3` branch of absal-rs is probably good start. The string on line 197 is a λ-program which is good enough to test the performance for varying sizes. The one there completes in about 500 kernel invocations, and peaks at about ~50k parallel redexes. That number can be tweaked by changing the amount of `/f`s on the code. For example:
+
+```
+b"@A #f #x /f x @B #f #x /f /f x //#a #b //#c #d ///c #e #f #g //g /e /#h #i #j #k /i ///h i j k f /e /#h #i #j #k /j ///h i j k f d #e #f #g g a //#c #d /c /c /c d b #c ///c #d #e #f #g /e ///d e f g #d #e #f #g /f ///d e f g #d #e #f f A B";
+```
+
+This is a very lightweight graph that can be reduced fairly quickly. This one is harder:
+
+```
+b"@A #f #x /f /f /f /f /f /f x @B #f #x /f /f /f /f x //#a #b //#c #d ///c #e #f #g //g /e /#h #i #j #k /i ///h i j k f /e /#h #i #j #k /j ///h i j k f d #e #f #g g a //#c #d /c /c /c d b #c ///c #d #e #f #g /e ///d e f g #d #e #f #g /f ///d e f g #d #e #f f A B";
+```
+
+This one is probably impossible in any existing computer:
+
+```
+b"@A #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x @B #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x //#a #b //#c #d ///c #e #f #g //g /e /#h #i #j #k /i ///h i j k f /e /#h #i #j #k /j ///h i j k f d #e #f #g g a //#c #d /c /c /c d b #c ///c #d #e #f #g /e ///d e f g #d #e #f #g /f ///d e f g #d #e #f f A B";
+```
+
+And so on. The first sequence of `/f`s determine how parallel-hard that graph is, and the second one determines how sequential-hard it is. If you want to implement your code independently, you may want to add a `println!("{:?}", net)`  after line 198. That way, you'll get a nice input buffer to test your implementation. You can also set `net.nodes = your_output_buffer;` (like on line 284) and then use `println!("{}", term::from_net(&net))` to print the corresponding λ-term. If it matches with the output of my implementation, then it is correct. You can also do it on the `master` branch if you just want input/output buffers and terms, in the case my OpenCL code doesn't run there. There is also a JavaScript implementation if Rust isn't your thing. And, of course, you can ignore my code and build some random graphs yourself and implement/test it in whatever way you feel like.
 
 
 
