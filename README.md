@@ -4,13 +4,13 @@ Note: just a draft / hand-drawn images, will be reviewed soon
 
 The input is a graph where every node has exactly 3 edges coming out of 3 labelled ports (port A, port B, port C) and a single 32-bit "node label" (do not confuse with port labels). If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten due to one of the two following rules:
 
-![](rewrite_rules_a.JPG)
+![](sk_rewrite_rules_a.png)
 
 Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e., their order), `a` and `b` represent node labels (32-bit values), and the lone circles represent separete ports (i.e., some ports in other nodes of the graph). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
 
 ## Example
 
-![](full_example.JPG)
+![](sk_full_example.png)
 
 The graph to the left is the input. Notice there are two nodes connected through ports of label A: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
 
@@ -18,7 +18,7 @@ The graph to the left is the input. Notice there are two nodes connected through
 
 That problem is remarkably parallel, because, at any point in time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple represents a node. The first 3 slots of the quadruple are the node ports (port A, port B, port C), and their values are the index of the adjacent port. The last value of the node is its 32-bit label. So, for example, the following graph:
 
-![](simple_example.JPG)
+![](sk_simple_example.png)
 
 Is represented as:
 
@@ -41,7 +41,7 @@ The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buf
 
 There is one problem, though. Notice the following graph:
 
-![](problem.JPG)
+![](sk_problem.png)
 
 Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in parallel. The problem is that thread 0 attempts to rewrite a port of the node D, which is currently being read by the thread 1! Or, in other words, while the rewrite rules are local, they can intersect. The following scenario can happen:
 
@@ -69,7 +69,7 @@ To solve that problem, I perform the reduction in two steps.
 
 The first step, `redex()`, applies those updated rewrite rules:
 
-![](local_rewrites.PNG)
+![](sk_local_rewrites.png)
 
 They're similar to the ones I drawn before, but now they're actually local because ports on the neighborhoods of active pairs (i.e., P, Q, R and S) aren't affected. Instead, they keep pointing to the same location, but that location now points to where they should point. Consequently, rewritten nodes can't be erased yet: instead, they are kept on memory as temporary "redirection nodes". 
 
@@ -79,7 +79,7 @@ The second step, `visit()`, takes place after the first one (i.e., a global sync
 
 ### Example
 
-![](local_rewrites_ex.JPG)
+![](sk_local_rewrites_ex.png)
 
 Notice that, on the first step, `redex()`, two threads rewrite nodes `B-C` and `D-E` locally. Their effect areas don't intersect, so the thread rewritting `B-C` won't touch `D-E`, and nodes `A` and `F` aren't affected at all. Nodes `B`, `C`, `D` and `E` become redirection nodes. The second step, `visit()`, is, then, responsible for completing the rewrite, freeing redirection nodes and starting step 1 again if new active pairs are found. Since `redex()` had two threads, `visit()` will need 8 threads, starting from ports `Ab, Ac, Db, Dc, Cb, Cc, Fb, Fc` (here, `Ab` represents port `B` of node `A`). As an example, the thread starting from `Ab` walks through this path: `Ab -> Bc -> Db -> Fc`. When it arrives at `Fc` (a non-redirection node), it connects `Ab` to it. It also frees nodes `B` and `D`. Finally, since `Ab <-> Fc` isn't an active pair, it stops. If it was `Aa <-> Fa` instead, it would start a `redex()` thread for it.
 
