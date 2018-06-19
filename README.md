@@ -4,7 +4,7 @@ Note: just a draft / hand-drawn images, will be reviewed soon
 
 The input is a graph where every node has exactly 3 edges coming out of 3 labelled ports (port A, port B, port C) and a single 32-bit "node label" (do not confuse with port labels). If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten due to one of the two following rules:
 
-![](rewrite_rules_a_sk.JPG)
+![](rewrite_rules_a_sk.jpeg)
 
 Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e., their order), `a` and `b` represent node labels (32-bit values), and the lone circles represent separete ports (i.e., some ports in other nodes of the graph). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left. 
 
