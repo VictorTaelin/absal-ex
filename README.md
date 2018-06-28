@@ -1,22 +1,24 @@
-Note: just a draft, will be reviewed soon
+## Lamping's Abstract Algorithm
+
+Absal is a cleaned up adaptation of [Lamping's Abstract Algorithm](http://dl.acm.org/citation.cfm?id=96711). It evaluates functions optimally by encoding a λ-term as ([symmetric](https://scholar.google.com.br/scholar?q=symmetric+interaction+combinators&hl=en&as_sdt=0&as_vis=1&oi=scholart&sa=X&ved=0ahUKEwjNgZbO7aTVAhUEkZAKHYyTAFgQgQMIJjAA)) [interaction combinators](http://www.sciencedirect.com/science/article/pii/S0890540197926432), normalizing the resulting graph, and decoding it back. It asymptotically beats all usual evaluators of functional programs, including Haskell's GHC, Scheme compilers, Google's V8 and so on. Moreover, it is capable of automatically exploiting any inherent parallelizability of your program, since interaction nets are a naturally concurrent model of computation.
 
 ## Problem description
 
-The input is a graph where every node has exactly 3 edges coming out of 3 labeled ports (port A, port B, port C) and a single 32-bit "node label" (do not confuse with port labels). If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten due to one of the two following rules:
+The input is a graph where every node has exactly 3 edges coming out of 3 labeled ports (port A, port B, port C) and a single 32-bit "node label" (do not confuse with port labels). If this graph has any edge connecting two nodes through ports A, then those nodes form an "active pair", and must be rewritten following to one of the two following rules:
 
 ![](img/sk_rewrite_rules_2x.png)
 
-Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e., their order), `a` and `b` represent node labels (32-bit values), and the lone circles represent separate ports (i.e., some ports in other nodes of the graph). The first rule is used if the node labels are identical. The second one if they are different. That could cause different nodes to become active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left.
+Here, the triangles represent nodes, `A`, `B` and `C` represent port labels (i.e., their order), `a` and `b` represent node labels (32-bit values), and the lone circles represent separate ports (i.e., some ports in other nodes of the graph). The annihilation rule is used if the node labels are identical. The duplication rule, if they are different. Both rules can make other nodes form active pairs. If that is the case, those must be rewritten too. That process goes on until there is no active pair left.
 
 ## Example
 
 ![](img/sk_full_example_2x.png)
 
-The graph to the left is the input. Notice there are two nodes connected through ports of label A: those are active pairs. The graph to the right is the next step of the computation: both of those nodes were rewritten, the bottom ones using the second rule, and top ones using the first rule. Now there are 4 active pairs.
+The graph to the left is the input. Notice there are two nodes connected through ports of label A: those are active pairs. The graph to the right is the next step of the computation: both of those pairs were rewritten. The pair in the bottom, using the duplication rule, and the pair in the top, using the annihilation rule. Now there are 4 active pairs.
 
 ## Parallel implementation
 
-That problem is remarkably parallel, because, at any point in time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple represents a node. The first 3 slots of the quadruple are the node ports (port A, port B, port C), and their values are the index of the adjacent port. The last value of the node is its 32-bit label. So, for example, the following graph:
+The problem is remarkably parallel, because, at any time, thousands of active pairs can be rewritten independently. The naive algorithm, thus, is simple. First, the graph is represented as a buffer of 32-bit unsigned integers. That buffer is split into quadruples. Each quadruple represents a node. The first 3 slots of the quadruple are the node ports (port A, port B, port C), and their values are the index of the port to which they are linked. The last value of the node is its 32-bit label. So, for example, the following graph:
 
 ![](img/sk_simple_example_2x.png)
 
@@ -29,7 +31,11 @@ var buffer = [     4,      2,      1,      0,       0,      6,      5,      1]
 //               i=0     i=1     i=2     i=3      i=4     i=5     i=6     i=7
 ```
 
-The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. The index 0 of the buffer represents the port A of the node A. Thus, `buffer[0] = 4`, because 4 is the position of the port A of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of the node A are connected. Also, the first node is considered the "root" node; it is never reduced (so, that pair is exceptionally not an active pair). The algorithm then just continuously rewrites active pairs on that buffer as such:
+The graph has 2 nodes, so the buffer has 4 * 2 = 8 uints. Index 0 of the buffer represents port A of node A. Thus, `buffer[0] = 4`, because 4 is the index of port A of node B. Similarly, `buffer[1] = 2` and `buffer[2] = 1`, because the port B and the port C of node A are connected.
+
+However, there is an exception to the rules in this example. The first node is considered the "root" node; it is never reduced (so, that pair is exceptionally not an active pair).
+
+The algorithm just continuously rewrites active pairs on the buffer as follows:
 
 1. Find the initial list of active pairs;
 
@@ -63,15 +69,15 @@ Here, two threads are trying to rewrite two active pairs, `B-C` and `D-E`, in pa
 
 9. Invalid state
 
-To solve that problem, I perform the reduction in two steps.
+To solve that problem, the reduction is performed in two steps.
 
 ### First step: redex()
 
-The first step, `redex()`, applies those updated rewrite rules:
+The first step, `redex()`, applies these updated rewrite rules:
 
 ![](img/sk_local_rewrites_2x.png)
 
-They're similar to the ones I drawn before, but now they're actually local because ports on the neighborhoods of active pairs (i.e., P, Q, R and S) aren't affected. Instead, they keep pointing to the same location, but that location now points to where they should point. Consequently, rewritten nodes can't be erased yet: instead, they are kept on memory as temporary "redirection nodes".
+They are similar to the rules presented before, but now they are actually local because ports on the neighborhoods of active pairs (i.e., P, Q, R and S) aren't affected. Instead, they keep pointing to the same location, which in turn points to where they should point. Consequently, rewritten nodes can't be erased yet: instead, they are kept on memory as temporary "redirection nodes".
 
 ### Second step: visit()
 
@@ -83,15 +89,13 @@ The second step, `visit()`, takes place after the first one (i.e., a global sync
 
 Notice that, on the first step, `redex()`, two threads rewrite nodes `B-C` and `D-E` locally. Their effect areas don't intersect, so the thread rewriting `B-C` won't touch `D-E`, and nodes `A` and `F` aren't affected at all. Nodes `B`, `C`, `D` and `E` become redirection nodes. The second step, `visit()`, is, then, responsible for completing the rewrite, freeing redirection nodes and starting step 1 again if new active pairs are found. Since `redex()` had two threads, `visit()` will need 8 threads, starting from ports `Ab, Ac, Db, Dc, Cb, Cc, Fb, Fc` (here, `Ab` represents port `B` of node `A`). As an example, the thread starting from `Ab` walks through this path: `Ab -> Bc -> Db -> Fc`. When it arrives at `Fc` (a non-redirection node), it connects `Ab` to it. It also frees nodes `B` and `D`. Finally, since `Ab <-> Fc` isn't an active pair, it stops. If it was `Aa <-> Fa` instead, it would start a `redex()` thread for it.
 
-This algorithm is implemented on the [branch `parallel_test_3` of the absal-rs repository](https://github.com/moon-project/absal-rs/tree/parallel-test-3). The OpenCl code is on `main.rs`. Despite being a GPU newbie and probably doing a lot of inefficient things (like using `atomic_inc()` to implement global stacks, and reading data from the GPU between each kernel call), I managed to achieve about 16m rewrites/s on Intel Iris Graphics 550, exactly the same performance I got on my sequential Rust implementation in a 3.3 GHZ Intel Core i7. My hope is that an expert in GPUs would be able to improve that number considerably.
-
-Note that I just came up with this myself, you probably know simpler and smarter solutions for this issue.
+This algorithm is implemented on [branch `parallel_test_3` of the `absal-rs` repository](https://github.com/moon-project/absal-rs/tree/parallel-test-3). The OpenCl code is on `main.rs`. Despite still inefficiently implemented, the algorithm managed to achieve about 16m rewrites/s on Intel Iris Graphics 550, exactly the same performance achieved on the sequential Rust implementation in a 3.3 GHZ Intel Core i7.
 
 ## Testing
 
-The purpose of this algorithm is to reduce lambda calculus terms optimally. It can, thus, be seen as the runtime of a programming language. It can be tested by converting lambda-terms to buffers on the format I described above, reducing it with the implementation, and then translating those buffers back to lambda-terms. If the output corresponds to the normal form of the lambda-term, then the test passes. There are, thus, literally infinite programs with infinitely different characteristics you could use to test it. I have Rust and JavaScript code capable of doing that, and will set up a bench of tests in the case we move forward.
+The purpose of this algorithm is to reduce lambda calculus terms optimally. It can, thus, be seen as the runtime of a programming language. It can be tested by converting lambda-terms to buffers on the format described above, reducing it with the implementation, and then translating those buffers back to lambda-terms. If the output corresponds to the normal form of the lambda-term, then the test passes. There are, thus, literally infinite programs with infinitely different characteristics which can be used to test it.
 
-In order for you to work, the Main.rs file on the `parallel-test-3` branch of absal-rs is probably good start. The string on line 197 is a λ-program which is generic enough to test the performance for varying sizes. It produces an input buffer which completes in about 500 kernel invocations, and peaks at about ~50k parallel redexes (active pairs). That number can be tweaked by changing the amount of `/f`s on the code. For example:
+For those wanting to contribute to the project, the Main.rs file on the `parallel-test-3` branch of absal-rs is probably good start. The GENERIC_CODE constant is a λ-program which is generic enough to test the performance for varying sizes. It produces an input buffer which completes in about 500 kernel invocations, and peaks at about ~50k parallel redexes (active pairs). That number can be tweaked by changing the amount of `/f`s on the code. For example:
 
 ```
 b"@A #f #x /f x @B #f #x /f /f x //#a #b //#c #d ///c #e #f #g //g /e /#h #i #j #k /i ///h i j k f /e /#h #i #j #k /j ///h i j k f d #e #f #g g a //#c #d /c /c /c d b #c ///c #d #e #f #g /e ///d e f g #d #e #f #g /f ///d e f g #d #e #f f A B";
@@ -109,4 +113,4 @@ This one is probably impossible in any existing computer:
 b"@A #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x @B #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x //#a #b //#c #d ///c #e #f #g //g /e /#h #i #j #k /i ///h i j k f /e /#h #i #j #k /j ///h i j k f d #e #f #g g a //#c #d /c /c /c d b #c ///c #d #e #f #g /e ///d e f g #d #e #f #g /f ///d e f g #d #e #f f A B";
 ```
 
-And so on. The first sequence of `/f`s determines how parallel-hard that graph is, and the second one determines how sequential-hard it is. If you want to implement your code independently, you may want to add a `println!("{:?}", net)`  after line 198. That way, you'll get a nice input buffer to test your implementation. You can also set `net.nodes = your_output_buffer;` (like on line 284) and then use `println!("{}", term::from_net(&net))` to print the corresponding λ-term. If it matches with the output of my implementation, then it is correct. You can also do it on the `master` branch if you just want input/output buffers and terms, in the case my OpenCL code doesn't run there. There is also a JavaScript implementation if Rust isn't your thing. And, of course, you can ignore my code and build some random graphs yourself and implement/test it in whatever way you feel like.
+And so on. The first sequence of `/f`s determines how parallel-hard that graph is, and the second one determines how sequential-hard it is. Those wanting to implement lambda code independently, may want to add a `println!("{:?}", net)`  after line `let mut net = term::to_net(&term::from_string(code));`. This will print a nice input buffer to test a new implementation. It is also possible to set `net.nodes = your_output_buffer;` (like on line 284) and then use `println!("{}", term::from_net(&net))` to print the corresponding λ-term.
