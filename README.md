@@ -123,15 +123,17 @@ Here is possible way to optimize by enabling local caching:
 
 ![](img/inet_regions.png)
 
-1. Get the initial list of N active edges. On the example above, there are 5 active edges.
+1. On CPU, get the initial list of N active edges. On the example above, there are 5 active edges.
 
-2. The graph is logically split in N regions, where each region contains the nodes that have their A-ports pointing to that active edge.
+2. The graph is logically split in N regions, where each region contains the nodes that have their A-ports pointing to that active edge. (This is not a computing step, just an imaginary separation.)
 
-3. In order to reduce, we pre-load a region on the local cache of a single chip. We reduce it as much as possible there, until there are no more local redexes. Only then we write back to global memory.
+3. Pre-load a region on the local cache of a single chip. To do it, just load the active edge, then load neighbors, neighbors of neighbors and so on. 
 
-4. Start a visit() kernel on possible active edges of regions. Make appropriate connections and get a new list of active edges.
+4. Reduce it as much as possible locally, until there are no more redexes. When there is nothing left to do, we write back to global memory.
 
-5. Repeat.
+5. Start a visit() kernel on possible active edges of regions. Make appropriate connections and get a new list of active edges.
+
+6. Repeat.
 
 The point is the observation that those regions can be reduced in isolation. So, for example, on this graph, RegionB would need 5 rewrites to complete (and much more if some of those nodes have different labels). All those could be performed locally without ever reaching the global memory.
 
