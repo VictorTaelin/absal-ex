@@ -127,11 +127,11 @@ Here is possible way to optimize by enabling local caching:
 
 2. The graph is logically split in N regions, where each region contains the nodes that have their A-ports pointing to that active edge. (This is not a computing step, just an imaginary separation.)
 
-3. Pre-load a region on the local cache of a single chip. To do it, just load the active pair (i.e., nodes `A`, `B`), then load its neighbors (i.e., `nodes_buf[port(A,1)], nodes_buf[port(A,2)], nodes_buf[port(B,1)], nodes_buf[port(B,2)]`), then neighbors of neighbors and so on. We stop loading when `slot(neighbor_port) != 0`, because that means that neighbor does not point to the active edge of this region.
+3. Pre-load a region on the local cache of a single chip. To do it, just load the active ports (i.e., `A_port`, `B_port`), then the corresponding nodes (i.e., `A = nodes_buf_vec[node(A_port)]`, `B = nodes_buf_vec[node(B_port)]`), then load its neighbor ports (i.e., `C_port = nodes_buf[port(A,1)]`, `D_port = nodes_buf[port(A,2)]`, `E_port = nodes_buf[port(B,1)]`, `F_port = nodes_buf[port(B,2)]`), then the corresponding nodes, then the neighbors of the neighbors and so on. We stop loading when `slot(neighbor_port) != 0`, because that means that neighbor does not point to the active edge of this region.
 
-4. Reduce regions as much as possible locally, alternating locally-synchronized `redex()/visit()` calls, until there are no more local active edges (i.e., all A ports point to boundaries). At this point, we write back to global memory, performing adequate pointer-space translations.
+4. Reduce regions in parallel, doing as much as possible locally, alternating locally-synchronized `redex()/visit()` calls, until there are no more local active edges. At this point, all `A` ports point to either `B`/`C` ports, or the region boundaries. We write back to global memory, performing adequate pointer-space translations.
 
-5. Start a global `visit()` kernel for each A port pointing to boundaries. This will make appropriate connections, and get a new list of active edges.
+5. Start a global `visit()` kernel for each of those `A` port pointing to boundaries. This will make appropriate connections, and generate a new list of active edges.
 
 6. Go to 3.
 
