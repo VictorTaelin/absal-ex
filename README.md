@@ -127,7 +127,7 @@ Here is possible way to optimize by enabling local caching:
 
 2. The graph is logically split in N regions, where each region contains the nodes that have their A-ports pointing to that active edge. (This is not a computing step, just an imaginary separation.)
 
-3. Pre-load a region on the local cache of a single chip. To do it, just load the active edge, then load neighbors, neighbors of neighbors and so on. 
+3. Pre-load a region on the local cache of a single chip. To do it, just load the active edge, then load neighbors (i.e., `nodes_buf[port(A,1)], nodes_buf[port(A,2)], nodes_buf[port(B,1)], nodes_buf[port(B,2)]`), neighbors of neighbors and so on. Obviously, only load nodes for which `slot(port) == 0`, because that means it points to the active edge of this region.
 
 4. Reduce it as much as possible locally, alternating locally-synchronized `redex()/visit()` calls, until there are no more local active edges (i.e., all A ports point to boundaries). At this point, we write back to global memory, performing adequate pointer-space translations.
 
