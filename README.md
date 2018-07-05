@@ -129,11 +129,11 @@ Here is possible way to optimize by enabling local caching:
 
 3. Pre-load a region on the local cache of a single chip. To do it, just load the active edge, then load neighbors, neighbors of neighbors and so on. 
 
-4. Reduce it as much as possible locally, until there are no more redexes. When there is nothing left to do, we write back to global memory.
+4. Reduce it as much as possible locally, alternating locally-synchronized `redex()/visit()` calls, until there are no more local active edges (i.e., all A ports point to boundaries). At this point, we write back to global memory, performing adequate pointer-space translations.
 
-5. Start a visit() kernel on possible active edges of regions. Make appropriate connections and get a new list of active edges.
+5. Start a global `visit()` kernel for each A port pointing to boundaries. This will make appropriate connections, and get a new list of active edges.
 
-6. Repeat.
+6. Go to 3.
 
 The point is the observation that those regions can be reduced in isolation. So, for example, on this graph, RegionB would need 5 rewrites to complete (and much more if some of those nodes have different labels). All those could be performed locally without ever reaching the global memory.
 
