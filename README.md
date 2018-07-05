@@ -114,3 +114,27 @@ b"@A #f #x /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f /f x @B #f #
 ```
 
 And so on. The first sequence of `/f`s determines how parallel-hard that graph is, and the second one determines how sequential-hard it is. Those wanting to implement lambda code independently, may want to add a `println!("{:?}", net)`  after line `let mut net = term::to_net(&term::from_string(code));`. This will print a nice input buffer to test a new implementation. It is also possible to set `net.nodes = your_output_buffer;` (like on line 284) and then use `println!("{}", term::from_net(&net))` to print the corresponding λ-term.
+
+---
+
+### Update: optimization idea
+
+Here is possible way to optimize by enabling local caching:
+
+![](img/inet_regions.png)
+
+1. Get the initial list of N active edges. On the example above, there are 5 active edges.
+
+2. The graph is logically split in N regions, where each region contains the nodes that have their A-ports pointing to that active edge.
+
+3. In order to reduce, we pre-load a region on the local cache of a single chip. We reduce it as much as possible there, until there are no more local redexes. Only then we write back to global memory.
+
+4. Start a visit() kernel on possible active edges of regions. Make appropriate connections and get a new list of active edges.
+
+5. Repeat.
+
+The point is the observation that those regions can be reduced in isolation. So, for example, on this graph, RegionB would need 5 rewrites to complete (and much more if some of those nodes have different labels). All those could be performed locally without ever reaching the global memory.
+
+Only problem is, of course, sometimes regions can be larger than the local cache of the core. In that case you could do it in chunks, I guess. Or they could be much smaller, so it would be good if the same core could process N small regions. 
+
+Further notes: of course, there is the added cost of pre-loading nodes that aren't active. But all those nodes WILL be active in a future anyway (because they point to an active edge)! So, there will be no more loads in total. Also, note we would not pre-load the region around the root "active edge" (the one with index zero) because that one is not active. As the reduction proceeds, that region will grow and eventually the whole graph will be on it (when there are no more active edges).
